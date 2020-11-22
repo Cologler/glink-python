@@ -1,2 +1,3 @@
-# glink-python
- sync gist with you local files
+# glink
+
+sync gist with you local files.
