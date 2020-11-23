@@ -6,29 +6,59 @@
 # ----------
 
 from typing import *
-from enum import IntEnum
+from enum import IntEnum, auto
 import os
 import pathlib
+import logging
 
-from click import Context, echo, style
+from click import Context, style
 import requests
 from typeguard import typechecked
 import github
 
+from .errors import GLinkError, LocalFileRemovedError, ConflictError
+from .abc import IRemoteProvider
 from .configs import GLinkConfigs
+from .provs.gist import GistProvider
 from .utils import determine_gist_file, sha1_bytes
+
 
 class SyncWays(IntEnum):
     pull = 1
     push = 2
     twoway = 3
 
+    def __str__(self) -> str:
+        return self.name
+
     def __format__(self, format_spec: str) -> str:
         return self.name
 
+    def to_symbol(self) -> str:
+        if self == SyncWays.twoway:
+            return '<->'
+        elif self == SyncWays.pull:
+            return ' ->'
+        else:
+            return '<- '
+
+
+class ConflictPolicies(IntEnum):
+    unset = auto()
+    local = auto()
+    remote = auto()
+    skip = auto()
+
+    def __str__(self) -> str:
+        return self.name
+
+    def __format__(self, format_spec: str) -> str:
+        return self.name
+
+
 _CONFIGS = GLinkConfigs()
 
-def add_link(ctx: Context, gist_info: dict, local_file: Optional[str], way: SyncWays):
+def add_link(gist_info: dict, local_file: Optional[str], way: SyncWays):
     gist_id: str = gist_info['gist_id']
     file: Optional[str] = gist_info.get('file')
 
@@ -42,12 +72,12 @@ def add_link(ctx: Context, gist_info: dict, local_file: Optional[str], way: Sync
     if file:
         remote_file = determine_gist_file(file, remote_files)
         if not remote_file:
-            return ctx.fail(f'no file named "{file}" in gist {gist_id}.')
+            raise GLinkError(f'no file named "{file}" in gist {gist_id}.')
     else:
         if len(remote_files) == 1:
             remote_file = remote_files[0]
         else:
-            return ctx.fail(f'must select a determinate file.')
+            raise GLinkError(f'must select a determinate file.')
 
     if not local_file:
         local_file = os.path.basename(remote_file)
@@ -62,43 +92,40 @@ def add_link(ctx: Context, gist_info: dict, local_file: Optional[str], way: Sync
         way=way.value
     )
 
-    if way == SyncWays.twoway:
-        direction = '<->'
-    elif way == SyncWays.pull:
-        direction = ' ->'
-    else:
-        direction = '<- '
-    echo(f'Link added: gist/{gist_id}/{gist_id} {direction} {local_file}')
-
+    glink_logger.info(f'Link added: gist/{gist_id}/{gist_id} {way.to_symbol()} {local_file}')
     return link_id
 
 @typechecked
-def _sync_core(ctx: Context, prov: str, user: str, repo: str, remote_file: str, local_file: str, way: int, sync_state: dict):
-    assert prov == 'gist'
+def _sync_one_core(
+        prov: str, user: str, repo: str, remote_file: str, local_file: str, way: int, sync_state: dict,
+        conflict_policy: ConflictPolicies
+    ):
     assert way in SyncWays.__members__.values()
 
-    gist_url = f'https://api.github.com/gists/{repo}'
-    r = requests.get(gist_url, timeout=10)
-    gist_data = r.json()
-    remote_file_info = gist_data['files'].get(remote_file)
-    if not remote_file_info:
-        echo(f'Remote file "{remote_file}" is removed, sync is skiped.')
-        return
-    remote_version = gist_data['history'][0]['version']
+    provider: IRemoteProvider
+    if prov == 'gist':
+        provider = GistProvider()
+    else:
+        raise NotImplementedError
+    remote_name = f'{prov}("{repo}")'
+    local_name = f'local("{local_file}")'
+
+    kwargs = dict(prov=prov, user=user, repo=repo, remote_file=remote_file)
+    auth_info = _CONFIGS.read_auth_info(prov, user)
+    if isinstance(auth_info, str):
+        kwargs['access_token'] = auth_info
+
+    remote_version = provider.get_remote_version(**kwargs)
     if remote_version != sync_state.get('remote_version'):
-        remote_file_content = requests.get(remote_file_info['raw_url'], timeout=10).content
+        glink_logger.debug(f'found new remote version: {remote_version}.')
+        remote_file_content = provider.get_remote_file_content(**kwargs)
+        if remote_file_content is None:
+            glink_logger.info(f'remote file "{remote_file}" is removed, sync is skiped.')
+            return
         remote_file_sha1 = sha1_bytes(remote_file_content)
         remote_file_changed = remote_file_sha1 != sync_state.get('file_sha1')
-        if sync_state:
-            if not os.path.isfile(local_file):
-                echo('Local file "{local_file}" is removed, sync is skiped.')
-                return
-            raise NotImplementedError
-        else: # first sync to pull
-            pass
-            if os.path.isfile(local_file):
-                pass
     else:
+        glink_logger.debug(f'remote version is not changed: {remote_version}.')
         remote_file_sha1 = None
         remote_file_content = None
         remote_file_changed = False
@@ -109,45 +136,84 @@ def _sync_core(ctx: Context, prov: str, user: str, repo: str, remote_file: str, 
         local_file_sha1 = sha1_bytes(local_file_content)
         local_file_changed = local_file_sha1 != sync_state.get('file_sha1')
     elif sync_state:
-        echo(f'Local file "{local_file}" is removed, sync is skiped.')
-        return
+        raise LocalFileRemovedError(f'local file "{local_file}" is removed, sync is skiped.')
     else:
         local_file_content = None
         local_file_sha1 = None
         local_file_changed = False
 
+    file_sha1 = None
+    pull, push = False, False
     if remote_file_changed and local_file_changed:
         if remote_file_sha1 == local_file_sha1:
-            echo(f'Reattach Local file "{local_file}" as unchanged.')
+            glink_logger.info(f'reattach local file "{local_file}" as unchanged.')
             file_sha1 = remote_file_sha1
         else:
-            raise NotImplementedError
+            if conflict_policy == ConflictPolicies.unset:
+                raise ConflictError(f'{local_name} and {remote_name} both changed.')
+            elif conflict_policy == ConflictPolicies.local:
+                if way == SyncWays.pull:
+                    glink_logger.warning('ignore by pull only.')
+                    return
+                push = True
+            else:
+                if way == SyncWays.push:
+                    glink_logger.warning('ignore by push only.')
+                    return
+                pull = True
     elif remote_file_changed:
         if way == SyncWays.push:
+            glink_logger.debug('ignore by push only.')
             return
-        local_file_pathobj.write_bytes(remote_file_content)
-        file_sha1 = remote_file_sha1
-        echo(f'Update "{local_file}" from remote.')
+        pull = True
     elif local_file_changed:
         if way == SyncWays.pull:
+            glink_logger.debug('ignore by pull only.')
             return
-        raise NotImplementedError
-    else:
-        file_sha1 = sync_state.get('file_sha1')
+        push = True
+
+    assert not (pull and push)
+    if pull:
+        local_file_pathobj.write_bytes(remote_file_content)
+        file_sha1 = remote_file_sha1
+        glink_logger.info(f'pull {remote_name} to {local_name}.')
+    elif push:
+        remote_version = provider.push_local_file_content(local_file_content=local_file_content, **kwargs)
+        file_sha1 = local_file_sha1
+        glink_logger.info(f'push {local_name} to {remote_name}.')
 
     assert remote_version
+    assert file_sha1
     sync_state.update(
         remote_version=remote_version,
         file_sha1=file_sha1
     )
     return True
 
-def sync_one(ctx: Context, link_id: str):
+def sync_one(link_id: str, conflict_policy: ConflictPolicies=ConflictPolicies.unset):
     link_data: dict = _CONFIGS.get_link(link_id=link_id)
     sync_state = link_data.setdefault('sync_state', {})
-    if _sync_core(ctx, **link_data):
+    synced = False
+    try:
+        synced = _sync_one_core(conflict_policy=conflict_policy, **link_data)
+    except LocalFileRemovedError as e:
+        glink_logger.info(e.message)
+    if synced:
         _CONFIGS.save_state(link_id=link_id, sync_state=sync_state)
 
-def sync_all(ctx: Context):
+def get_all_link_ids():
+    return _CONFIGS.get_all_linkids()
+
+def list_():
     for link_id in _CONFIGS.get_all_linkids():
-        sync_one(ctx, link_id)
+        link_data: dict = _CONFIGS.get_link(link_id=link_id)
+        remote_name = '{prov}("{repo}")'.format_map(link_data)
+        local_name = '"local("{local_file}")'.format_map(link_data)
+        way: SyncWays = SyncWays(link_data['way'])
+        glink_logger.info(f'{link_id}: {remote_name} {way.to_symbol()} {local_name}')
+
+def remove_link(link_id: str):
+    _CONFIGS.remove_link(link_id=link_id)
+
+
+glink_logger = logging.getLogger('glink')

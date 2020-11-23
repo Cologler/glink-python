@@ -14,6 +14,7 @@ xdg = "^5.0.1"
 sqlitedict = "^1.7.0"
 typeguard = "^2.10.0"
 filelock = "^3.0.12"
+click-log = "^0.3.2"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.1.2"

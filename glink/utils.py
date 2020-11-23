@@ -8,7 +8,6 @@
 from typing import *
 import re
 import hashlib
-import io
 
 def parse_gist_url(url: str):
     match = re.match(r'^(?:https://gist.github.com/(?:(?P<user>[^/]+)/)?)?(?P<gist_id>[0-9a-f]+)(?:#(?P<file>.*))?$', url)

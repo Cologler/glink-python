@@ -56,6 +56,17 @@ python-versions = "*"
 click = "*"
 
 [[package]]
+name = "click-log"
+version = "0.3.2"
+description = "Logging integration for Click"
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+click = "*"
+
+[[package]]
 name = "colorama"
 version = "0.4.4"
 description = "Cross-platform colored terminal text."
@@ -277,7 +288,7 @@ python-versions = ">=3.6,<4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "ff2c390605f762abf4b7aad7aefe05bfe64a5d94d46a0360f4bd78b124602833"
+content-hash = "15166bec21a858d2d3afdfa0698cdda04086cd3a2792ff5d71e7c68d17c5fdc9"
 
 [metadata.files]
 atomicwrites = [
@@ -303,6 +314,10 @@ click = [
 click-anno = [
     {file = "click_anno-0.1.1-py3-none-any.whl", hash = "sha256:1f12d66e24e066e32be98544cbf27aae50e8db52571151bf5d7d44bf38981ac0"},
     {file = "click_anno-0.1.1.tar.gz", hash = "sha256:129e311ab42252f3441fd85b15c66794a08386db7cb6545e5d8be3db42578234"},
+]
+click-log = [
+    {file = "click-log-0.3.2.tar.gz", hash = "sha256:16fd1ca3fc6b16c98cea63acf1ab474ea8e676849dc669d86afafb0ed7003124"},
+    {file = "click_log-0.3.2-py2.py3-none-any.whl", hash = "sha256:eee14dc37cdf3072158570f00406572f9e03e414accdccfccd4c538df9ae322c"},
 ]
 colorama = [
     {file = "colorama-0.4.4-py2.py3-none-any.whl", hash = "sha256:9f47eda37229f68eee03b24b9748937c7dc3868f906e8ba69fbcbdd3bc5dc3e2"},

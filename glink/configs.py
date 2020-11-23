@@ -8,6 +8,7 @@
 import json
 from functools import partial
 import uuid
+import json
 
 import xdg
 import sqlitedict
@@ -17,6 +18,7 @@ class GLinkConfigs:
     def __init__(self) -> None:
         self._conf_root = xdg.XDG_CONFIG_HOME / 'Cologler' / 'glink'
         self._conf_root.mkdir(parents=True, exist_ok=True)
+        self._auth_path = self._conf_root / 'auth.json'
 
     def _get_linkdb(self, autocommit=False):
         return sqlitedict.SqliteDict(
@@ -48,6 +50,11 @@ class GLinkConfigs:
             return linkdb.get(link_id)
 
     @typechecked
+    def remove_link(self, link_id: str):
+        with self._get_linkdb(True) as linkdb:
+            del linkdb[link_id]
+
+    @typechecked
     def save_state(self, link_id: str, sync_state: dict):
         with self._get_linkdb(True) as linkdb:
             data = linkdb[link_id]
@@ -57,3 +64,10 @@ class GLinkConfigs:
     def get_all_linkids(self):
         with self._get_linkdb() as linkdb:
             return list(linkdb)
+
+    @typechecked
+    def read_auth_info(self, prov: str, user: str):
+        if self._auth_path.is_file():
+            text = self._auth_path.read_text(encoding='utf-8')
+            return json.loads(text).get(f'{user}@{prov}')
+        return None
