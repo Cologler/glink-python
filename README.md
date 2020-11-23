@@ -2,11 +2,6 @@
 
 Sync files between gist and localhost.
 
-Difference between `glink` and [gist-sync](https://github.com/Cologler/gist-sync-python):
-
-- `glink` store sync states in `~/.config/Cologler/glink/...`
-- `gist-sync` store sync states in the gist directory.
-
 ## Purpose
 
 When I clone a lot of repos and found a lot of interesting code file,
