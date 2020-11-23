@@ -61,9 +61,19 @@ class GLinkConfigs:
             data['sync_state'] = sync_state
             linkdb[link_id] = data
 
-    def get_all_linkids(self):
+    def get_all_link_ids(self):
         with self._get_linkdb() as linkdb:
             return list(linkdb)
+
+    @typechecked
+    def get_users(self, prov: str):
+        'get all user for the service'
+        if self._auth_path.is_file():
+            text = self._auth_path.read_text(encoding='utf-8')
+            d: dict = json.loads(text)
+            suffix = f'@{prov}'
+            return [k.removesuffix(suffix) for k in d if k.endswith(suffix)]
+        return []
 
     @typechecked
     def read_auth_info(self, prov: str, user: str):

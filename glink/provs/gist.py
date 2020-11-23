@@ -5,19 +5,24 @@
 #
 # ----------
 
+from sys import implementation
 from typing import *
 from functools import cache
-import click
 
-import requests
+import click
 import github
+from github.GithubException import UnknownObjectException
 
 from ..abc import IRemoteProvider
+from ..errors import RemoteFileRemovedError
 
 @cache
 def get_gist(gist_id: str, token: str=None):
     client = github.Github(token)
-    return client.get_gist(gist_id)
+    try:
+        return client.get_gist(gist_id)
+    except UnknownObjectException:
+        raise RemoteFileRemovedError(f'gist("{gist_id}") is removed')
 
 class GistProvider(IRemoteProvider):
     name = 'gist'
@@ -51,3 +56,18 @@ class GistProvider(IRemoteProvider):
         }
         gist.edit(files=files_content)
         return gist.history[0].version
+
+    def new_gist(self, *,
+            user: str, filename: str, content: bytes, access_token: str,
+            public: bool,
+            **kwargs) -> str:
+        if not access_token:
+            click.get_current_context().fail('access token is required')
+            return
+
+        files_content = {
+            filename: github.InputFileContent(content.decode('utf-8'))
+        }
+        client = github.Github(access_token)
+        gist = client.get_user().create_gist(public, files=files_content)
+        return gist.id

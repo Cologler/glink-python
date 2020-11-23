@@ -11,12 +11,12 @@ import os
 import pathlib
 import logging
 
-from click import Context, style
 import requests
+from click import style
 from typeguard import typechecked
 import github
 
-from .errors import GLinkError, LocalFileRemovedError, ConflictError
+from .errors import GLinkError, LocalFileRemovedError, ConflictError, RemoteFileRemovedError
 from .abc import IRemoteProvider
 from .configs import GLinkConfigs
 from .provs.gist import GistProvider
@@ -92,7 +92,47 @@ def add_link(gist_info: dict, local_file: Optional[str], way: SyncWays):
         way=way.value
     )
 
-    glink_logger.info(f'Link added: gist/{gist_id}/{gist_id} {way.to_symbol()} {local_file}')
+    glink_logger.info(f'link added: gist/{gist_id}/{remote_file} {way.to_symbol()} {local_file}')
+    return link_id
+
+def push_new_gist(local_file: str, user: Optional[str], public: bool):
+    prov = 'gist'
+
+    if user is None:
+        users = _CONFIGS.get_users(prov)
+        if len(users) == 0:
+            glink_logger.error('no gist user in configs.')
+        elif len(users) > 1:
+            glink_logger.error('you must type a user.')
+        else:
+            user = users[0]
+
+    auth_info = _CONFIGS.read_auth_info(prov, user)
+    if isinstance(auth_info, str):
+        access_token = auth_info
+    else:
+        access_token = None
+
+    provider = GistProvider()
+    remote_file = os.path.basename(local_file)
+    repo = provider.new_gist(
+        user=user,
+        filename=remote_file,
+        content=pathlib.Path(local_file).read_bytes(),
+        access_token=access_token,
+        public=public
+    )
+
+    link_id: str = _CONFIGS.add_link(
+        prov=prov,
+        user=user,
+        repo=repo,
+        remote_file=remote_file,
+        local_file=os.path.abspath(local_file),
+        way=SyncWays.twoway.value
+    )
+
+    glink_logger.info(f'link added: gist/{repo}/{remote_file} {SyncWays.twoway.to_symbol()} {local_file}')
     return link_id
 
 @typechecked
@@ -136,7 +176,7 @@ def _sync_one_core(
         local_file_sha1 = sha1_bytes(local_file_content)
         local_file_changed = local_file_sha1 != sync_state.get('file_sha1')
     elif sync_state:
-        raise LocalFileRemovedError(f'local file "{local_file}" is removed, sync is skiped.')
+        raise LocalFileRemovedError(f'local("{local_file}") is removed')
     else:
         local_file_content = None
         local_file_sha1 = None
@@ -196,21 +236,18 @@ def sync_one(link_id: str, conflict_policy: ConflictPolicies=ConflictPolicies.un
     synced = False
     try:
         synced = _sync_one_core(conflict_policy=conflict_policy, **link_data)
-    except LocalFileRemovedError as e:
-        glink_logger.info(e.message)
+    except (LocalFileRemovedError, RemoteFileRemovedError) as e:
+        glink_logger.warning(f'skiped link("{link_id}") because {e.message}.')
     if synced:
         _CONFIGS.save_state(link_id=link_id, sync_state=sync_state)
 
 def get_all_link_ids():
-    return _CONFIGS.get_all_linkids()
+    return _CONFIGS.get_all_link_ids()
 
 def list_():
-    for link_id in _CONFIGS.get_all_linkids():
-        link_data: dict = _CONFIGS.get_link(link_id=link_id)
-        remote_name = '{prov}("{repo}")'.format_map(link_data)
-        local_name = '"local("{local_file}")'.format_map(link_data)
-        way: SyncWays = SyncWays(link_data['way'])
-        glink_logger.info(f'{link_id}: {remote_name} {way.to_symbol()} {local_name}')
+    return dict(
+        (link_id, _CONFIGS.get_link(link_id=link_id)) for link_id in _CONFIGS.get_all_link_ids()
+    )
 
 def remove_link(link_id: str):
     _CONFIGS.remove_link(link_id=link_id)

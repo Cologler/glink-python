@@ -17,5 +17,9 @@ class LocalFileRemovedError(GLinkError):
     pass
 
 
+class RemoteFileRemovedError(GLinkError):
+    pass
+
+
 class ConflictError(GLinkError):
     pass
