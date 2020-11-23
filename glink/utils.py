@@ -33,7 +33,7 @@ def determine_gist_file(expect_name: str, remote_files: List[str]):
     if expect_name.startswith('file-'):
         # file-* like gist link
         remote_files_map = dict((x.translate(_GIST_URL_TRANSLATES), x) for x in remote_files)
-        remote_file = remote_files_map.get(expect_name.removeprefix('file-'))
+        remote_file = remote_files_map.get(expect_name[5:])
         if remote_file:
             return remote_file
 
