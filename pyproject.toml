@@ -18,7 +18,7 @@ click-log = "^0.3.2"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.1.2"
-setupmeta-builder = "^0.2.0"
+setupmeta-builder = "^0.2.1"
 
 [tool.poetry.scripts]
 glink = 'glink.cli:main'
