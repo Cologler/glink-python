@@ -16,6 +16,12 @@ it will lose the connection.
 
 Try [gist-sync](https://github.com/Cologler/gist-sync-python) if you need move the gist files.
 
+## Installation
+
+``` bash
+pip install glink2
+```
+
 ## Login
 
 To login a remote repo, you need to edit the `~/.config/Cologler/glink/auth.json`.

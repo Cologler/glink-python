@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "glink"
+name = "glink2"
 version = "0.1.0"
 description = ""
 authors = ["Cologler <skyoflw@gmail.com>"]
