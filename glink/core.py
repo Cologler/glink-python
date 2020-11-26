@@ -5,6 +5,7 @@
 #
 # ----------
 
+from os import link
 from typing import *
 from enum import IntEnum, auto
 import os
@@ -233,6 +234,9 @@ def _sync_one_core(
 
 def sync_one(link_id: str, conflict_policy: ConflictPolicies=ConflictPolicies.unset):
     link_data: dict = _CONFIGS.get_link(link_id=link_id)
+    if not link_data:
+        glink_logger.warning(f'no such link: {link_id}')
+        return
     sync_state = link_data.setdefault('sync_state', {})
     synced = False
     try:
