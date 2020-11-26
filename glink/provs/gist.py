@@ -7,7 +7,7 @@
 
 from sys import implementation
 from typing import *
-from functools import cache
+from functools import lru_cache
 
 import click
 import github
@@ -16,7 +16,7 @@ from github.GithubException import UnknownObjectException
 from ..abc import IRemoteProvider
 from ..errors import RemoteFileRemovedError
 
-@cache
+@lru_cache(maxsize=None)
 def get_gist(gist_id: str, token: str=None):
     client = github.Github(token)
     try:

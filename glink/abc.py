@@ -7,7 +7,7 @@
 
 from typing import *
 from abc import ABC, abstractmethod
-from functools import cache
+from functools import lru_cache
 
 import requests
 
@@ -41,6 +41,6 @@ class IRemoteProvider(ABC):
         raise NotImplementedError
 
     @staticmethod
-    @cache
+    @lru_cache(maxsize=None)
     def _http_get(url: str) -> dict:
         return requests.get(url, timeout=10)
