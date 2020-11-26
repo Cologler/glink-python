@@ -154,6 +154,7 @@ def _sync_one_core(
     auth_info = _CONFIGS.read_auth_info(prov, user)
     if isinstance(auth_info, str):
         kwargs['access_token'] = auth_info
+    kwargs.setdefault('access_token', None)
 
     remote_version = provider.get_remote_version(**kwargs)
     if remote_version != sync_state.get('remote_version'):
