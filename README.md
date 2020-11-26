@@ -1,7 +1,7 @@
 # glink
 
 ![GitHub](https://img.shields.io/github/license/Cologler/glink-python.svg)
-[![Build Status](https://travis-ci.com/Cologler/glink-python.svg?branch=master)](https://travis-ci.com/Cologler/glink-python)
+[![Build Status](https://travis-ci.com/Cologler/glink-python.svg?branch=main)](https://travis-ci.com/Cologler/glink-python)
 [![PyPI](https://img.shields.io/pypi/v/glink2.svg)](https://pypi.org/project/glink2/)
 
 Sync files between gist and localhost.
