@@ -158,8 +158,8 @@ def _sync_one_core(
     kwargs.setdefault('access_token', None)
 
     remote_version = provider.get_remote_version(**kwargs)
+    glink_logger.debug(f'current remote version is: {remote_version}.')
     if remote_version != sync_state.get('remote_version'):
-        glink_logger.debug(f'found new remote version: {remote_version}.')
         remote_file_content = provider.get_remote_file_content(**kwargs)
         if remote_file_content is None:
             glink_logger.info(f'remote file "{remote_file}" is removed, sync is skiped.')
@@ -167,7 +167,6 @@ def _sync_one_core(
         remote_file_sha1 = sha1_bytes(remote_file_content)
         remote_file_changed = remote_file_sha1 != sync_state.get('file_sha1')
     else:
-        glink_logger.debug(f'remote version is not changed: {remote_version}.')
         remote_file_sha1 = None
         remote_file_content = None
         remote_file_changed = False
@@ -187,6 +186,7 @@ def _sync_one_core(
     file_sha1 = None
     pull, push = False, False
     if remote_file_changed and local_file_changed:
+        glink_logger.debug(f'both versions is changed.')
         if remote_file_sha1 == local_file_sha1:
             glink_logger.info(f'reattach local file "{local_file}" as unchanged.')
             file_sha1 = remote_file_sha1
@@ -204,15 +204,22 @@ def _sync_one_core(
                     return
                 pull = True
     elif remote_file_changed:
+        glink_logger.debug(f'remote version is changed.')
         if way == SyncWays.push:
             glink_logger.debug('ignore by push only.')
             return
         pull = True
+
     elif local_file_changed:
+        glink_logger.debug(f'local version is changed.')
         if way == SyncWays.pull:
             glink_logger.debug('ignore by pull only.')
             return
         push = True
+
+    else:
+        glink_logger.debug(f'both versions is not changed.')
+        return
 
     assert not (pull and push)
     if pull:
