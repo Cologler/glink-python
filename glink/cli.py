@@ -52,18 +52,22 @@ class App:
         list all links.
         '''
 
-        for link_id, link_data in list_().items():
-            self._logger.info('{link_id}: {remote_name} {way} {local_name}'.format(
-                link_id=click.style(link_id, fg='blue'),
-                remote_name='{prov}("{repo}")'.format(
-                    prov=link_data['prov'],
-                    repo=click.style(link_data['repo'], fg='green')
-                ),
-                way=SyncWays(link_data['way']).to_symbol(),
-                local_name='local("{local_file}")'.format(
-                    local_file=click.style(link_data['local_file'], fg='green')
-                ),
-            ))
+        items = list_().items()
+        if items:
+            for link_id, link_data in items:
+                self._logger.info('{link_id}: {remote_name} {way} {local_name}'.format(
+                    link_id=click.style(link_id, fg='blue'),
+                    remote_name='{prov}("{repo}")'.format(
+                        prov=link_data['prov'],
+                        repo=click.style(link_data['repo'], fg='green')
+                    ),
+                    way=SyncWays(link_data['way']).to_symbol(),
+                    local_name='local("{local_file}")'.format(
+                        local_file=click.style(link_data['local_file'], fg='green')
+                    ),
+                ))
+        else:
+            self._logger.info('~ here is empty ~')
 
     def link(self, ctx: Context, url: str, file: str=None, *, way: SyncWays=SyncWays.twoway):
         'link a remote file to local.'
