@@ -8,11 +8,44 @@
 from typing import *
 from abc import ABC, abstractmethod
 from functools import lru_cache
+from dataclasses import dataclass
+from logging import getLogger
 
 import requests
 
+@dataclass
+class RemoteFileInfo:
+    origin_url: str
+    prov: str
+    user: Optional[str]
+    repo: Optional[str]
+    remote_file: str
+
+    def __str__(self) -> str:
+        return self.s(False)
+
+    def s(self, styled=True) -> str:
+        prov = self.prov
+        repo = self.repo + '#' if self.repo else ''
+        remote_file = self.remote_file
+        if styled:
+            import click
+            prov = click.style(prov, fg='bright_blue')
+            repo = click.style(repo, fg='bright_green')
+            remote_file = click.style(remote_file, fg='green')
+        return '{prov}("{repo}{remote_file}")'.format_map(vars())
+
+
 class IRemoteProvider(ABC):
     name: str
+
+    def __init__(self):
+        self._logger = getLogger('glink.' + self.name)
+
+    @abstractmethod
+    def parse_url(self, url: str) -> Optional[RemoteFileInfo]:
+        'try parse the url'
+        raise NotImplementedError
 
     @abstractmethod
     def get_remote_version(self, *, user: str, repo: str, remote_file: str,

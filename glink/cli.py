@@ -26,7 +26,6 @@ from .core import (
     SyncWays, ConflictPolicies,
     add_link, sync_one, get_all_link_ids, list_, remove_link, push_new_gist
 )
-from .utils import parse_gist_url
 
 class _CliLoggerHandler(click_log.ClickHandler):
     def emit(self, record):
@@ -68,12 +67,8 @@ class App:
 
     def link(self, ctx: Context, url: str, file: str=None, *, way: SyncWays=SyncWays.twoway):
         'add doc'
-        gist_info = parse_gist_url(url)
-        if not gist_info:
-            return ctx.fail(f'{url} is not a gist url.')
-
         try:
-            link_id = add_link(gist_info, file, way)
+            link_id = add_link(url, file, way)
             self._logger.info('link id: {}'.format(style(link_id, fg='green')))
             if click.confirm('sync now?', default=True, show_default=True):
                 sync_one(link_id)

@@ -5,7 +5,7 @@
 #
 # ----------
 
-from glink.utils import parse_gist_url, determine_gist_file
+from glink.provs.gist import parse_gist_url, determine_gist_file
 
 def test_parse_gist_url_fullurl():
     assert parse_gist_url('https://gist.github.com/Cologler/17a6dfcb530d53d0b155706b8d657772#file-python-travis-yml') == dict(

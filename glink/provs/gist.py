@@ -5,16 +5,44 @@
 #
 # ----------
 
-from sys import implementation
 from typing import *
 from functools import lru_cache
+import re
 
 import click
 import github
 from github.GithubException import UnknownObjectException
 
-from ..abc import IRemoteProvider
+from ..abc import IRemoteProvider, RemoteFileInfo
 from ..errors import RemoteFileRemovedError
+
+def parse_gist_url(url: str):
+    match = re.match(r'^(?:https://gist.github.com/(?:(?P<user>[^/]+)/)?)?(?P<gist_id>[0-9a-f]+)(?:#(?P<file>.*))?$', url)
+    if match:
+        user = match.group('user')
+        file = match.group('file')
+        rv = dict(
+            gist_id=match.group('gist_id'),
+        )
+        if user:
+            rv['user'] = user
+        if file:
+            rv['file'] = file
+        return rv
+
+_GIST_URL_TRANSLATES = {
+    ord('.'): '-'
+}
+
+def determine_gist_file(expect_name: str, remote_files: List[str]):
+    if expect_name in remote_files:
+        return expect_name
+    if expect_name.startswith('file-'):
+        # file-* like gist link
+        remote_files_map = dict((x.translate(_GIST_URL_TRANSLATES), x) for x in remote_files)
+        remote_file = remote_files_map.get(expect_name[5:])
+        if remote_file:
+            return remote_file
 
 @lru_cache(maxsize=None)
 def get_gist(gist_id: str, token: str=None):
@@ -26,6 +54,37 @@ def get_gist(gist_id: str, token: str=None):
 
 class GistProvider(IRemoteProvider):
     name = 'gist'
+
+    def parse_url(self, url: str) -> Optional[RemoteFileInfo]:
+        gist_info = parse_gist_url(url)
+        if not gist_info:
+            return None
+
+        gist_id: str = gist_info['gist_id']
+        file: Optional[str] = gist_info.get('file')
+        gist = get_gist(gist_id, None)
+
+        # determine remote file
+        remote_files: List[str] = list(gist.files)
+
+        if file:
+            remote_file = determine_gist_file(file, remote_files)
+            if not remote_file:
+                self._logger.debug(f'no file named "{file}" in gist {gist_id}.')
+                return
+        else:
+            if len(remote_files) == 1:
+                remote_file = remote_files[0]
+            else:
+                self._logger.debug(f'must select a determinate file.')
+                return
+
+        return RemoteFileInfo(
+            origin_url=url, prov=self.name,
+            user=gist.owner.login,
+            repo=gist_id,
+            remote_file=remote_file
+        )
 
     def get_remote_version(self, *, user: str, repo: str, remote_file: str,
                            access_token: str,

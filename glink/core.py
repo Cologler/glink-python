@@ -5,7 +5,6 @@
 #
 # ----------
 
-from os import link
 from typing import *
 from enum import IntEnum, auto
 import os
@@ -17,11 +16,11 @@ from click import style
 from typeguard import typechecked
 import github
 
-from .errors import GLinkError, LocalFileRemovedError, ConflictError, RemoteFileRemovedError
+from .errors import LocalFileRemovedError, ConflictError, RemoteFileRemovedError
 from .abc import IRemoteProvider
 from .configs import GLinkConfigs
 from .provs.gist import GistProvider
-from .utils import determine_gist_file, sha1_bytes
+from .utils import sha1_bytes
 
 
 class SyncWays(IntEnum):
@@ -59,41 +58,43 @@ class ConflictPolicies(IntEnum):
 
 _CONFIGS = GLinkConfigs()
 
-def add_link(gist_info: dict, local_file: Optional[str], way: SyncWays):
-    gist_id: str = gist_info['gist_id']
-    file: Optional[str] = gist_info.get('file')
 
-    gist_url = f'https://api.github.com/gists/{gist_id}'
-    r = requests.get(gist_url, timeout=10)
-    gist_data = r.json()
+def _get_providers() -> Dict[str, IRemoteProvider]:
+    return dict((x.name, x) for x in [GistProvider()])
 
-    # determine remote file
-    remote_files: List[str] = list(gist_data['files'])
+def add_link(url: str, local_file: Optional[str], way: SyncWays):
+    parsed = [(p, p.parse_url(url)) for p in _get_providers().values()]
+    parsed = [(p, r) for p, r in parsed if r]
 
-    if file:
-        remote_file = determine_gist_file(file, remote_files)
-        if not remote_file:
-            raise GLinkError(f'no file named "{file}" in gist {gist_id}.')
-    else:
-        if len(remote_files) == 1:
-            remote_file = remote_files[0]
-        else:
-            raise GLinkError(f'must select a determinate file.')
+    if not parsed:
+        glink_logger.error(f'url "{url}" does not match any pattern.')
+        return
+
+    if len(parsed) > 1:
+        glink_logger.warning(f'url "{url}" matched multi patterns:')
+        for _, r in parsed:
+            glink_logger.info(f'  - {r.s()}')
+        return
+
+    prov, rfi = parsed[0]
+
+    remote_file = rfi.remote_file
+    assert remote_file
 
     if not local_file:
         local_file = os.path.basename(remote_file)
     local_file = os.path.abspath(local_file)
 
     link_id: str = _CONFIGS.add_link(
-        prov='gist',
-        user=gist_data['owner']['login'],
-        repo=gist_id,
+        prov=prov.name,
+        user=rfi.user,
+        repo=rfi.repo,
         remote_file=remote_file,
         local_file=local_file,
         way=way.value
     )
 
-    glink_logger.info(f'link added: gist/{gist_id}/{remote_file} {way.to_symbol()} {local_file}')
+    glink_logger.info(f'link added: {rfi.s()} {way.to_symbol()} {local_file}')
     return link_id
 
 def push_new_gist(local_file: str, user: Optional[str], public: bool):
