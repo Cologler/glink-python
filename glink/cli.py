@@ -66,7 +66,7 @@ class App:
             ))
 
     def link(self, ctx: Context, url: str, file: str=None, *, way: SyncWays=SyncWays.twoway):
-        'add doc'
+        'link a remote file to local.'
         try:
             link_id = add_link(url, file, way)
             self._logger.info('link id: {}'.format(style(link_id, fg='green')))
