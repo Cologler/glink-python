@@ -87,7 +87,7 @@ class App:
             self._logger.info(f'unlinked: {link_id}.')
 
     def push(self, ctx: Context, file: str, user: str=None, public: flag=False):
-        'push a file to a new gist'
+        'push the file to a new gist'
         if not os.path.isfile(file):
             self._logger.error(f'{file} is not a file.')
         link_id = push_new_gist(file, user=user, public=public)
