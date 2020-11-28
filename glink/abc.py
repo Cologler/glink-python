@@ -30,8 +30,7 @@ class RemoteFileInfo:
         remote_file = self.remote_file
         if styled:
             import click
-            prov = click.style(prov, fg='bright_blue')
-            repo = click.style(repo, fg='bright_green')
+            repo = click.style(repo, fg='green')
             remote_file = click.style(remote_file, fg='green')
         return '{prov}("{repo}{remote_file}")'.format_map(vars())
 
