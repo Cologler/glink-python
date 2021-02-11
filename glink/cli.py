@@ -79,7 +79,7 @@ class App:
         except GLinkError as ge:
             ctx.fail(ge.message)
 
-    def unlink(self, link_id: str):
+    def unlink(self, ctx: Context, link_id: str):
         '''
         remove a link.
         '''
@@ -87,6 +87,8 @@ class App:
             self._api.remove_link(link_id)
         except KeyError:
             self._logger.error(f'no such link: {link_id}.')
+        except GLinkError as ge:
+            ctx.fail(ge.message)
         else:
             self._logger.info(f'unlinked: {link_id}.')
 
@@ -94,8 +96,12 @@ class App:
         'push the file as a new gist.'
         if not os.path.isfile(file):
             self._logger.error(f'{file} is not a file.')
-        link_id = self._api.push_new_gist(file, user=user, public=public)
-        self._logger.info('link id: {}'.format(style(link_id, fg='green')))
+        try:
+            link_id = self._api.push_new_gist(file, user=user, public=public)
+        except GLinkError as ge:
+            ctx.fail(ge.message)
+        else:
+            self._logger.info('link id: {}'.format(style(link_id, fg='green')))
 
     def sync(self, link_id: str):
         'sync one link.'
