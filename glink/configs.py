@@ -9,14 +9,17 @@ import json
 from functools import partial
 import uuid
 import json
+import pathlib
 
 import xdg
 import sqlitedict
 from typeguard import typechecked
 
 class GLinkConfigs:
-    def __init__(self) -> None:
-        self._conf_root = xdg.XDG_CONFIG_HOME / 'Cologler' / 'glink'
+    def __init__(self, conf_root: pathlib.Path=None) -> None:
+        if conf_root is None:
+            conf_root = xdg.XDG_CONFIG_HOME / 'Cologler' / 'glink'
+        self._conf_root = conf_root
         self._conf_root.mkdir(parents=True, exist_ok=True)
         self._auth_path = self._conf_root / 'auth.json'
 

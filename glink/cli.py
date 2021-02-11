@@ -23,8 +23,7 @@ import click_log
 
 from .errors import GLinkError, ConflictError
 from .core import (
-    SyncWays, ConflictPolicies,
-    add_link, sync_one, get_all_link_ids, list_, remove_link, push_new_gist
+    GLinkApi, SyncWays, ConflictPolicies
 )
 
 class _CliLoggerHandler(click_log.ClickHandler):
@@ -35,7 +34,7 @@ class _CliLoggerHandler(click_log.ClickHandler):
 
 @click_app
 class App:
-    def __init__(self, debug: flag=False) -> None:
+    def __init__(self, debug: flag=False, conf_root: str=None) -> None:
         # setup logger
         logger = logging.getLogger('glink')
         handler = _CliLoggerHandler()
@@ -46,13 +45,14 @@ class App:
         else:
             logger.setLevel(logging.INFO)
         self._logger = logger
+        self._api = GLinkApi(conf_root)
 
     def list_(self):
         '''
         list all links.
         '''
 
-        items = list_().items()
+        items = self._api.get_links().items()
         if items:
             for link_id, link_data in items:
                 self._logger.info('{link_id}: {remote_name} {way} {local_name}'.format(
@@ -72,10 +72,10 @@ class App:
     def link(self, ctx: Context, url: str, file: str=None, *, way: SyncWays=SyncWays.twoway):
         'link a remote file to local.'
         try:
-            link_id = add_link(url, file, way)
+            link_id = self._api.add_link(url, file, way)
             self._logger.info('link id: {}'.format(style(link_id, fg='green')))
             if click.confirm('sync now?', default=True, show_default=True):
-                sync_one(link_id)
+                self._api.sync_one(link_id)
         except GLinkError as ge:
             ctx.fail(ge.message)
 
@@ -84,7 +84,7 @@ class App:
         remove a link.
         '''
         try:
-            remove_link(link_id)
+            self._api.remove_link(link_id)
         except KeyError:
             self._logger.error(f'no such link: {link_id}.')
         else:
@@ -94,14 +94,14 @@ class App:
         'push the file as a new gist.'
         if not os.path.isfile(file):
             self._logger.error(f'{file} is not a file.')
-        link_id = push_new_gist(file, user=user, public=public)
+        link_id = self._api.push_new_gist(file, user=user, public=public)
         self._logger.info('link id: {}'.format(style(link_id, fg='green')))
 
     def sync(self, link_id: str):
         'sync one link.'
 
         try:
-            sync_one(link_id)
+            self._api.sync_one(link_id)
         except ConflictError as e:
             self._logger.warning(e)
         else:
@@ -118,16 +118,16 @@ class App:
         policy = click.prompt('decide to?', type=choice, show_choices=True)
 
         if policy == 'unlink':
-            remove_link(link_id)
+            self._api.remove_link(link_id)
         elif policy == str(ConflictPolicies.skip):
             pass
         else:
-            sync_one(link_id, options[policy])
+            self._api.sync_one(link_id, options[policy])
 
     def sync_all(self):
         'sync all links.'
 
-        for link_id in get_all_link_ids():
+        for link_id in self._api.get_all_link_ids():
             self.sync(link_id)
 
 def main(argv=None):
