@@ -9,12 +9,11 @@ from typing import *
 from functools import lru_cache
 import re
 
-import click
 import github
 from github.GithubException import UnknownObjectException
 
 from ..abc import IRemoteProvider, RemoteFileInfo
-from ..errors import RemoteFileRemovedError
+from ..errors import RemoteFileRemovedError, MissingDataError
 
 def parse_gist_url(url: str):
     match = re.match(r'^(?:https://gist.github.com/(?:(?P<user>[^/]+)/)?)?(?P<gist_id>[0-9a-f]+)(?:#(?P<file>.*))?$', url)
@@ -106,8 +105,7 @@ class GistProvider(IRemoteProvider):
                                 access_token: str,
                                 **kwargs) -> str:
         if not access_token:
-            click.get_current_context().fail('access token is required')
-            return
+            raise MissingDataError('access token is required')
 
         gist = get_gist(repo, access_token)
         files_content = {
@@ -121,8 +119,7 @@ class GistProvider(IRemoteProvider):
             public: bool,
             **kwargs) -> str:
         if not access_token:
-            click.get_current_context().fail('access token is required')
-            return
+            raise MissingDataError('access token is required')
 
         files_content = {
             filename: github.InputFileContent(content.decode('utf-8'))

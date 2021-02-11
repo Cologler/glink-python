@@ -23,3 +23,7 @@ class RemoteFileRemovedError(GLinkError):
 
 class ConflictError(GLinkError):
     pass
+
+
+class MissingDataError(GLinkError):
+    pass

@@ -11,10 +11,7 @@ import os
 import pathlib
 import logging
 
-import requests
-from click import style
 from typeguard import typechecked
-import github
 
 from .errors import LocalFileRemovedError, ConflictError, RemoteFileRemovedError
 from .abc import IRemoteProvider
