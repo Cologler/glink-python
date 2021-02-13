@@ -91,14 +91,16 @@ class GistProvider(IRemoteProvider):
         gist = get_gist(repo, access_token)
         return gist.history[0].version
 
-    def get_remote_file_content(self, *, user: str, repo: str, remote_file: str,
+    def get_remote_file_content(self, *, user: str, repo: str, remote_file: str, version: str,
                                 access_token: str,
                                 **kwargs) -> Optional[bytes]:
         gist = get_gist(repo, access_token)
-        gist.files.get(remote_file)
-        remote_file_info = gist.files.get(remote_file)
-        if remote_file_info:
-            return self._http_get(remote_file_info.raw_url).content
+        for revision in gist.history:
+            if revision.version == version:
+                remote_file_info = revision.files.get(remote_file)
+                if remote_file_info:
+                    return self._http_get(remote_file_info.raw_url).content
+                break
 
     def push_local_file_content(self, *, user: str, repo: str, remote_file: str,
                                 local_file_content: bytes,

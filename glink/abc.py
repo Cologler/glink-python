@@ -53,7 +53,7 @@ class IRemoteProvider(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_remote_file_content(self, *, user: str, repo: str, remote_file: str,
+    def get_remote_file_content(self, *, user: str, repo: str, remote_file: str, version: str,
                                 access_token: Optional[str],
                                 **kwargs) -> Optional[bytes]:
         '''

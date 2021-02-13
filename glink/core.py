@@ -163,7 +163,7 @@ class GLinkApi:
         remote_version = provider.get_remote_version(**kwargs)
         self._logger.debug(f'current remote version is: {remote_version}.')
         if remote_version != sync_state.get('remote_version'):
-            remote_file_content = provider.get_remote_file_content(**kwargs)
+            remote_file_content = provider.get_remote_file_content(**kwargs, version=remote_version)
             if remote_file_content is None:
                 self._logger.info(f'remote file "{remote_file}" is removed, sync is skiped.')
                 return
