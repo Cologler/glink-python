@@ -16,7 +16,7 @@ import xdg
 import sqlitedict
 from typeguard import typechecked
 
-from .errors import NoSuchUserError, UnspecifiedUserError
+from .errors import UnspecifiedUserError
 
 class GLinkConfigs:
     def __init__(self, conf_root: pathlib.Path=None) -> None:
@@ -76,21 +76,16 @@ class GLinkConfigs:
         '''
         read auth info for provider.
         '''
+        suffix = f'@{prov}'
 
         if self._auth_path.is_file():
-            suffix = f'@{prov}'
             text = self._auth_path.read_text(encoding='utf-8')
             d: dict = json.loads(text)
         else:
             d: dict = {}
 
         if user:
-            try:
-                return d[f'{user}{suffix}']
-            except KeyError:
-                raise NoSuchUserError(
-                    f'no user from {prov} named {user}'
-                ) from None
+            return d.get(f'{user}{suffix}')
 
         elif allow_default:
             auth_keys = [k for k in d if k.endswith(suffix)]
@@ -99,10 +94,6 @@ class GLinkConfigs:
             elif len(auth_keys) > 1:
                 raise UnspecifiedUserError(
                     'you must explicit specify a user.'
-                )
-            else:
-                raise NoSuchUserError(
-                    f'no users from {prov}'
                 )
 
         else:

@@ -29,9 +29,5 @@ class MissingDataError(GLinkError):
     pass
 
 
-class NoSuchUserError(GLinkError):
-    pass
-
-
 class UnspecifiedUserError(GLinkError):
     pass
