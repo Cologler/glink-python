@@ -111,16 +111,7 @@ class GLinkApi:
     def push_new_gist(self, local_file: str, user: Optional[str], public: bool):
         prov = 'gist'
 
-        if user is None:
-            users = self._configs.get_users(prov)
-            if len(users) == 0:
-                self._logger.error('no gist user in configs.')
-            elif len(users) > 1:
-                self._logger.error('you must type a user.')
-            else:
-                user = users[0]
-
-        auth_info = self._configs.read_auth_info(prov, user)
+        auth_info = self._configs.read_auth_info(prov, user, allow_default=True)
         if isinstance(auth_info, str):
             access_token = auth_info
         else:

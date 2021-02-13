@@ -7,6 +7,7 @@
 
 import json
 from functools import partial
+from typing import Optional
 import uuid
 import json
 import pathlib
@@ -14,6 +15,8 @@ import pathlib
 import xdg
 import sqlitedict
 from typeguard import typechecked
+
+from .errors import NoSuchUserError, UnspecifiedUserError
 
 class GLinkConfigs:
     def __init__(self, conf_root: pathlib.Path=None) -> None:
@@ -69,18 +72,38 @@ class GLinkConfigs:
             return list(linkdb)
 
     @typechecked
-    def get_users(self, prov: str):
-        'get all user for the service'
+    def read_auth_info(self, prov: str, user: Optional[str], allow_default: bool=False):
+        '''
+        read auth info for provider.
+        '''
+
         if self._auth_path.is_file():
+            suffix = f'@{prov}'
             text = self._auth_path.read_text(encoding='utf-8')
             d: dict = json.loads(text)
-            suffix = f'@{prov}'
-            return [k.removesuffix(suffix) for k in d if k.endswith(suffix)]
-        return []
+        else:
+            d: dict = {}
 
-    @typechecked
-    def read_auth_info(self, prov: str, user: str):
-        if self._auth_path.is_file():
-            text = self._auth_path.read_text(encoding='utf-8')
-            return json.loads(text).get(f'{user}@{prov}')
-        return None
+        if user:
+            try:
+                return d[f'{user}{suffix}']
+            except KeyError:
+                raise NoSuchUserError(
+                    f'no user from {prov} named {user}'
+                ) from None
+
+        elif allow_default:
+            auth_keys = [k for k in d if k.endswith(suffix)]
+            if len(auth_keys) == 1:
+                return d[auth_keys[0]]
+            elif len(auth_keys) > 1:
+                raise UnspecifiedUserError(
+                    'you must explicit specify a user.'
+                )
+            else:
+                raise NoSuchUserError(
+                    f'no users from {prov}'
+                )
+
+        else:
+            raise NotImplementedError('should not go here')
