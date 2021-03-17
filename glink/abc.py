@@ -58,7 +58,7 @@ class IRemoteProvider(ABC):
                                 **kwargs) -> Optional[bytes]:
         '''
         get file content as bytes.
-        return `None` if the file was removed.
+        return `None` if the file does not exists.
         '''
         raise NotImplementedError
 
