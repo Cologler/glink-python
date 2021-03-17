@@ -5,6 +5,7 @@
 #
 # ----------
 
+from glink.abc import RemoteFileInfo
 from os import remove
 from re import T
 from threading import local
@@ -57,9 +58,10 @@ class App:
             for link_id, link_data in items:
                 self._logger.info('{link_id}: {remote_name} {way} {local_name}'.format(
                     link_id=click.style(link_id, fg='blue'),
-                    remote_name='{prov}("{repo}")'.format(
+                    remote_name='{prov}("{repo}#{remote_file}")'.format(
                         prov=link_data['prov'],
-                        repo=click.style(link_data['repo'], fg='green')
+                        repo=click.style(link_data['repo'], fg='green'),
+                        remote_file=click.style(link_data['remote_file'], fg='green'),
                     ),
                     way=SyncWays(link_data['way']).to_symbol(),
                     local_name='local("{local_file}")'.format(
