@@ -164,10 +164,13 @@ class GLinkApi:
         self._logger.debug(f'current remote version is: {remote_version}.')
         if remote_version != sync_state.get('remote_version'):
             remote_file_content = provider.get_remote_file_content(**kwargs, version=remote_version)
-            if remote_file_content is None:
-                self._logger.info(f'remote file "{remote_file}" is removed, sync is skiped.')
-                return
-            remote_file_sha1 = sha1_bytes(remote_file_content)
+            if remote_file_content is not None:
+                remote_file_sha1 = sha1_bytes(remote_file_content)
+            elif not sync_state:
+                # new link for push
+                remote_file_sha1 = None
+            else:
+                raise RemoteFileRemovedError(f'remote file {remote_file!r} is removed')
             remote_file_changed = remote_file_sha1 != sync_state.get('file_sha1')
         else:
             remote_file_sha1 = None
@@ -180,7 +183,7 @@ class GLinkApi:
             local_file_sha1 = sha1_bytes(local_file_content)
             local_file_changed = local_file_sha1 != sync_state.get('file_sha1')
         elif sync_state:
-            raise LocalFileRemovedError(f'local("{local_file}") is removed')
+            raise LocalFileRemovedError(f'local file {local_file!r} is removed')
         else:
             local_file_content = None
             local_file_sha1 = None

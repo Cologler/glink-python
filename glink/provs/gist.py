@@ -42,6 +42,7 @@ def determine_gist_file(expect_name: str, remote_files: List[str]):
         remote_file = remote_files_map.get(expect_name[5:])
         if remote_file:
             return remote_file
+    return expect_name
 
 @lru_cache(maxsize=None)
 def get_gist(gist_id: str, token: str=None):
@@ -68,9 +69,6 @@ class GistProvider(IRemoteProvider):
 
         if file:
             remote_file = determine_gist_file(file, remote_files)
-            if not remote_file:
-                self._logger.debug(f'no file named "{file}" in gist {gist_id}.')
-                return
         else:
             if len(remote_files) == 1:
                 remote_file = remote_files[0]
